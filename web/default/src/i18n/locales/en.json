@@ -2026,6 +2026,8 @@
     "Initialize system": "Initialize system",
     "Initializing…": "Initializing…",
     "Inpaint": "Inpaint",
+    "Inject User ID in Proxy": "Inject User ID in Proxy",
+    "Inject user ID into proxy URL username for per-user identification at proxy server": "Inject user ID into proxy URL username for per-user identification at proxy server",
     "Input": "Input",
     "Input mode": "Input mode",
     "Input price": "Input price",
