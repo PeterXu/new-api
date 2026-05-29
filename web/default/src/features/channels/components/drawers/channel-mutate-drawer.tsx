@@ -3215,6 +3215,31 @@ export function ChannelMutateDrawer({
 
                       <FormField
                         control={form.control}
+                        name='inject_user_id_in_proxy_url'
+                        render={({ field }) => (
+                          <FormItem className='flex items-center justify-between'>
+                            <div className='space-y-0.5'>
+                              <FormLabel>
+                                {t('Inject User ID in Proxy')}
+                              </FormLabel>
+                              <FormDescription>
+                                {t(
+                                  'Inject user ID into proxy URL username for per-user identification at proxy server'
+                                )}
+                              </FormDescription>
+                            </div>
+                            <FormControl>
+                              <Switch
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
+                            </FormControl>
+                          </FormItem>
+                        )}
+                      />
+
+                      <FormField
+                        control={form.control}
                         name='system_prompt'
                         render={({ field }) => (
                           <FormItem>
