@@ -38,6 +38,7 @@ func InitHttpClient() {
 		MaxIdleConns:        common.RelayMaxIdleConns,
 		MaxIdleConnsPerHost: common.RelayMaxIdleConnsPerHost,
 		ForceAttemptHTTP2:   true,
+		IdleConnTimeout:     90 * time.Second,
 		Proxy:               http.ProxyFromEnvironment, // Support HTTP_PROXY, HTTPS_PROXY, NO_PROXY env vars
 	}
 	if common.TLSInsecureSkipVerify {
@@ -109,6 +110,7 @@ func NewProxyHttpClient(proxyURL string) (*http.Client, error) {
 			MaxIdleConns:        common.RelayMaxIdleConns,
 			MaxIdleConnsPerHost: common.RelayMaxIdleConnsPerHost,
 			ForceAttemptHTTP2:   true,
+			IdleConnTimeout:     90 * time.Second,
 			Proxy:               http.ProxyURL(parsedURL),
 		}
 		if common.TLSInsecureSkipVerify {
@@ -118,7 +120,9 @@ func NewProxyHttpClient(proxyURL string) (*http.Client, error) {
 			Transport:     transport,
 			CheckRedirect: checkRedirect,
 		}
-		client.Timeout = time.Duration(common.RelayTimeout) * time.Second
+		if common.RelayTimeout > 0 {
+			client.Timeout = time.Duration(common.RelayTimeout) * time.Second
+		}
 		proxyClientLock.Lock()
 		proxyClients[proxyURL] = client
 		proxyClientLock.Unlock()
@@ -148,6 +152,7 @@ func NewProxyHttpClient(proxyURL string) (*http.Client, error) {
 			MaxIdleConns:        common.RelayMaxIdleConns,
 			MaxIdleConnsPerHost: common.RelayMaxIdleConnsPerHost,
 			ForceAttemptHTTP2:   true,
+			IdleConnTimeout:     90 * time.Second,
 			DialContext: func(ctx context.Context, network, addr string) (net.Conn, error) {
 				return dialer.Dial(network, addr)
 			},
@@ -157,7 +162,9 @@ func NewProxyHttpClient(proxyURL string) (*http.Client, error) {
 		}
 
 		client := &http.Client{Transport: transport, CheckRedirect: checkRedirect}
-		client.Timeout = time.Duration(common.RelayTimeout) * time.Second
+		if common.RelayTimeout > 0 {
+			client.Timeout = time.Duration(common.RelayTimeout) * time.Second
+		}
 		proxyClientLock.Lock()
 		proxyClients[proxyURL] = client
 		proxyClientLock.Unlock()
