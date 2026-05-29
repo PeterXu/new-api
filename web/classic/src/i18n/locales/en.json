@@ -432,6 +432,8 @@
     "从默认列表中去掉一个分组": "Remove a group from the default list",
     "代理地址": "Proxy address",
     "代理设置": "Proxy Settings",
+    "在代理中注入用户 ID": "Inject User ID in Proxy",
+    "将用户 ID 注入代理 URL 用户名，用于代理服务器端的用户身份识别": "Inject user ID into proxy URL username for per-user identification at proxy server",
     "代码已复制到剪贴板": "Code copied to clipboard",
     "令牌": "Tokens",
     "令牌不存在": "",
