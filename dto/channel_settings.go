@@ -4,6 +4,7 @@ type ChannelSettings struct {
 	ForceFormat            bool   `json:"force_format,omitempty"`
 	ThinkingToContent      bool   `json:"thinking_to_content,omitempty"`
 	Proxy                  string `json:"proxy"`
+	InjectUserIdInProxy bool   `json:"inject_userid_in_proxy,omitempty"` // Inject user ID into SOCKS5/HTTP proxy URL username for per-user identification at proxy server
 	PassThroughBodyEnabled bool   `json:"pass_through_body_enabled,omitempty"`
 	SystemPrompt           string `json:"system_prompt,omitempty"`
 	SystemPromptOverride   bool   `json:"system_prompt_override,omitempty"`
