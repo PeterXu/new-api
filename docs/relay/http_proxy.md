@@ -239,7 +239,220 @@ func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http
 
 ---
 
-## 5. 关键代码位置汇总
+## 5. 连接生命周期与回收机制
+
+### 5.1 连接池管理
+
+代理客户端通过 `http.Transport` 的连接池管理 SOCKS5 连接：
+
+```go
+transport := &http.Transport{
+    MaxIdleConns:        500,                  // 最大空闲连接数
+    MaxIdleConnsPerHost: 100,                  // 每个主机最大空闲连接数
+    IdleConnTimeout:     90 * time.Second,     // 空闲连接 90 秒后自动回收
+    ...
+}
+```
+
+**关键参数详解：**
+
+| 参数 | 默认值 | 说明 |
+|------|--------|------|
+| `MaxIdleConns` | 500 | 全局最大空闲连接数，通过 `RELAY_MAX_IDLE_CONNS` 环境变量配置 |
+| `MaxIdleConnsPerHost` | 100 | 每个上游主机最大空闲连接数，通过 `RELAY_MAX_IDLE_CONNS_PER_HOST` 环境变量配置 |
+| `IdleConnTimeout` | 90s | 空闲连接超时时间，超过此时间自动关闭 |
+
+#### MaxIdleConns 示例
+
+限制连接池中所有空闲连接的总数（跨所有上游主机）：
+
+```
+场景：MaxIdleConns=500
+
+上游主机 A (api.openai.com)    → 最多保留 100 个空闲连接
+上游主机 B (api.anthropic.com) → 最多保留 100 个空闲连接
+上游主机 C (api.gemini.google) → 最多保留 100 个空闲连接
+... 其他主机                    → 总空闲连接数不超过 500
+
+超出限制时：最旧的空闲连接会被立即关闭
+```
+
+#### MaxIdleConnsPerHost 示例
+
+限制每个上游主机的最大空闲连接数：
+
+```
+场景：MaxIdleConnsPerHost=100
+
+同一时刻有 150 个并发请求到 api.openai.com：
+  - 请求完成后，150 个连接尝试进入空闲池
+  - 只有 100 个会被保留
+  - 50 个多余的连接立即关闭
+
+为什么需要限制：
+  - 防止某个热门主机占用过多内存
+  - 避免资源倾斜（一个主机占满整个池）
+```
+
+#### IdleConnTimeout 是什么？
+
+**定义：** 空闲连接在池中存活的最长时间。超过此时间未使用的连接会被自动关闭。
+
+**工作原理：**
+
+```
+时间线示例 (IdleConnTimeout=90s):
+
+T=0s    用户 A 发起请求 → 创建 SOCKS5 连接 → 连接进入池
+T=5s    用户 A 再次请求 → 从池中取出连接 → 复用成功
+T=10s   请求完成 → 连接归还到池 → 连接状态: 空闲
+T=20s   无新请求 → 连接继续空闲
+T=50s   无新请求 → 连接继续空闲
+T=90s   无新请求 → 连接继续空闲
+T=100s  达到 IdleConnTimeout → 连接自动关闭 ← 回收点
+
+对比：如果 T=50s 有新请求
+T=50s  新请求到来 → 从池取出连接复用
+T=55s  请求完成 → 连接归还 → 空闲计时重置为 0
+T=145s 才会触发回收（90s 从 T=55s 开始算）
+```
+
+**为什么设置为 90 秒？**
+
+| 考量 | 说明 |
+|------|------|
+| 连接复用 | 90s 内的后续请求可复用连接，避免 SOCKS5 握手开销 |
+| 内存释放 | 长时间不用的连接会被清理，防止内存泄漏 |
+| 代理服务器负载 | 减少代理服务器维护大量空闲连接的压力 |
+| 典型业务场景 | 用户连续提问通常在几分钟内完成，90s 視窗覆盖大多数对话 |
+
+**与其他超时的区别：**
+
+| 超时参数 | 作用阶段 | 说明 |
+|----------|----------|------|
+| `IdleConnTimeout` | 连接空闲后 | 连接在池中未被使用的存活时间 |
+| `client.Timeout` | 请求进行中 | 整个 HTTP 请求的超时时间 |
+| `ResponseHeaderTimeout` | 请求进行中 | 等待响应头的超时时间 |
+
+### 5.2 代理客户端缓存
+
+代理客户端按 URL 缓存，避免每次请求重复创建 SOCKS5 dialer：
+
+```go
+// service/http_client.go
+var (
+    proxyClientLock sync.Mutex
+    proxyClients    = make(map[string]*http.Client)  // 按 proxyURL 缓存
+)
+```
+
+**缓存特点：**
+- 相同代理 URL 共享同一个 `http.Client` 和连接池
+- 当启用 `InjectUserIdInProxyURL` 时，每个用户对应一个缓存条目（URL 不同）
+- 活跃用户的连接可复用（keep-alive），不同用户互不干扰
+
+### 5.3 连接回收触发时机
+
+| 触发方式 | 时机 | 效果 |
+|----------|------|------|
+| **自动回收** | 连接空闲超过 90 秒 | `IdleConnTimeout` 触发，连接自动关闭 |
+| **缓存重置** | 渠道配置变更时 | 调用 `ResetProxyClientCache()`，强制关闭所有空闲连接并清空缓存 |
+| **响应体关闭** | 每次请求结束时 | `resp.Body.Close()` 将连接归还到池（不关闭），供后续复用 |
+
+**缓存重置触发点：**
+
+```go
+func ResetProxyClientCache() {
+    proxyClientLock.Lock()
+    defer proxyClientLock.Unlock()
+    for _, client := range proxyClients {
+        if transport, ok := client.Transport.(*http.Transport); ok {
+            transport.CloseIdleConnections()  // 强制关闭所有空闲连接
+        }
+    }
+    proxyClients = make(map[string]*http.Client)  // 清空缓存
+}
+```
+
+调用位置：
+- `controller/channel.go:679` — 批量插入渠道后
+- `controller/channel.go:983` — 更新渠道后
+- `controller/channel_upstream_update.go:420` — 上游模型更新后
+- `service/codex_credential_refresh.go` — 凭证刷新后
+
+### 5.4 连接生命周期图解
+
+```
+请求开始
+    │
+    ▼
+[检查代理配置]
+    │
+    ├─ 无代理 ──► 使用默认 HttpClient (连接池共享)
+    │
+    ├─ 有代理 ──► [检查缓存]
+    │                 │
+    │                 ├─ 已缓存 ──► 使用缓存的 Client
+    │                 │
+    │                 └─ 未缓存 ──► [创建新 Client]
+    │                                    │
+    │                                    ├─ 创建 SOCKS5 dialer
+    │                                    ├─ 创建 Transport (连接池)
+    │                                    ├─ 创建 HttpClient
+    │                                    └─ 存入缓存
+    │
+    ▼
+[发起请求]
+    │
+    ├─ 从连接池获取连接（或新建）
+    ├─ 通过 SOCKS5 隧道发送请求
+    ├─ 接收响应
+    │
+    ▼
+[关闭响应体] resp.Body.Close()
+    │
+    ├─ 连接归还到池（保持活跃，可复用）
+    │
+    ▼
+等待后续请求...
+    │
+    ├─ 有新请求 ──► 复用连接（keep-alive）
+    │
+    ├─ 90 秒无请求 ──► IdleConnTimeout 触发
+    │                      │
+    │                      ▼
+    │                 [连接自动关闭]
+    │
+    ├─ 渠道配置变更 ──► ResetProxyClientCache()
+    │                      │
+    │                      ▼
+    │                 [强制关闭所有空闲连接]
+    │                 [清空客户端缓存]
+    │
+    ▼
+连接生命周期结束
+```
+
+### 5.5 重要注意事项
+
+**无逐请求显式关闭：**
+- SOCKS5 连接不在每个请求结束时显式关闭
+- 连接由 `http.Transport` 连接池统一管理
+- `resp.Body.Close()` 仅归还连接到池，不关闭连接
+
+**连接复用优势：**
+- 减少 SOCKS5 握手开销（认证、隧道建立）
+- 降低代理服务器负载
+- 提高请求响应速度
+
+**按用户隔离：**
+- 当启用 `InjectUserIdInProxyURL` 时，每个用户有独立的连接池
+- 用户 A 的连接不会被用户 B 复用
+- 代理服务器可准确统计每个用户的连接数和流量
+
+---
+
+## 6. 关键代码位置汇总
 
 | 功能 | 文件路径 |
 |------|----------|
@@ -256,7 +469,7 @@ func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http
 
 ---
 
-## 6. 通过 SOCKS5 转发后的实际请求
+## 7. 通过 SOCKS5 转发后的实际请求
 
 当请求通过 SOCKS5 代理转发时，**HTTP 层面的请求内容不变**，变化的是 TCP 连接路径：
 
