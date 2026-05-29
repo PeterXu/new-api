@@ -2307,6 +2307,8 @@
     "Initialize system": "初始化系统",
     "Initializing…": "正在初始化…",
     "Inpaint": "局部重绘",
+    "Inject User ID in Proxy": "在代理中注入用户 ID",
+    "Inject user ID into proxy URL username for per-user identification at proxy server": "将用户 ID 注入代理 URL 用户名，用于代理服务器端的用户身份识别",
     "Input": "输入",
     "Input mode": "输入模式",
     "Input price": "输入价格",
