@@ -241,6 +241,13 @@ func Relay(c *gin.Context, relayFormat types.RelayFormat) {
 		if !shouldRetry(c, newAPIError, common.RetryTimes-retryParam.GetRetry()) {
 			break
 		}
+
+		// Exponential backoff before next retry: 100ms * 2^retry, max 30s
+		backoff := time.Duration(100*(1<<retryParam.GetRetry())) * time.Millisecond
+		if backoff > 30*time.Second {
+			backoff = 30 * time.Second
+		}
+		time.Sleep(backoff)
 	}
 
 	useChannel := c.GetStringSlice("use_channel")
@@ -569,6 +576,13 @@ func RelayTask(c *gin.Context) {
 		if !shouldRetryTaskRelay(c, channel.Id, taskErr, common.RetryTimes-retryParam.GetRetry()) {
 			break
 		}
+
+		// Exponential backoff before next retry: 100ms * 2^retry, max 30s
+		backoff := time.Duration(100*(1<<retryParam.GetRetry())) * time.Millisecond
+		if backoff > 30*time.Second {
+			backoff = 30 * time.Second
+		}
+		time.Sleep(backoff)
 	}
 
 	useChannel := c.GetStringSlice("use_channel")
