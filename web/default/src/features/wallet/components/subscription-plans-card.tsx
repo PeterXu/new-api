@@ -58,6 +58,7 @@ import type {
   UserSubscriptionRecord,
 } from '@/features/subscriptions/types'
 import type { PaymentMethod, TopupInfo } from '../types'
+import { formatBillingCurrencyFromUSD } from '@/lib/currency'
 
 interface SubscriptionPlansCardProps {
   topupInfo: TopupInfo | null
@@ -570,7 +571,7 @@ export function SubscriptionPlansCard({
 
                     <div className='py-2'>
                       <span className='text-primary text-2xl font-bold'>
-                        ${price}
+                        {formatBillingCurrencyFromUSD(price)}
                       </span>
                     </div>
 
