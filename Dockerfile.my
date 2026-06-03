@@ -62,7 +62,10 @@ COPY main.go .
 
 COPY --from=builder /build/web/default/dist ./web/default/dist
 COPY --from=builder-classic /build/web/classic/dist ./web/classic/dist
-RUN go build -ldflags "-s -w -X 'github.com/QuantumNous/new-api/common.Version=$(cat VERSION)'" -o new-api
+
+ARG VERSION
+#RUN go build -ldflags "-s -w -X 'github.com/QuantumNous/new-api/common.Version=$(cat VERSION)'" -o new-api
+RUN go build -ldflags "-s -w -X github.com/QuantumNous/new-api/common.Version=${VERSION:-dev}" -o new-api
 
 FROM debian:bookworm-slim
 
@@ -77,6 +80,9 @@ RUN apt-get update \
 COPY --from=builder2 /build/new-api /
 COPY LICENSE NOTICE THIRD-PARTY-LICENSES.md /licenses/
 EXPOSE 3000
+
 WORKDIR /data
 COPY .env.template .
+COPY docker-compose.yml .
+
 ENTRYPOINT ["/new-api"]
