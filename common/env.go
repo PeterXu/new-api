@@ -36,3 +36,16 @@ func GetEnvOrDefaultBool(env string, defaultValue bool) bool {
 	}
 	return b
 }
+
+// GetLogInterval returns a log interval from env variable.
+// 0 means logging is disabled, positive value means log every N cycles.
+func GetLogInterval(envKey string, defaultValue int) int {
+	logInterval := GetEnvOrDefaultString(envKey, strconv.Itoa(defaultValue))
+	if logInterval == "0" {
+		return 0
+	}
+	if v, err := strconv.Atoi(logInterval); err == nil && v > 0 {
+		return v
+	}
+	return defaultValue
+}

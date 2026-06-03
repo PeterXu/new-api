@@ -89,9 +89,17 @@ func sweepTimedOutTasks(ctx context.Context) {
 
 // TaskPollingLoop 主轮询循环，每 15 秒检查一次未完成的任务
 func TaskPollingLoop() {
+	interval := common.GetLogInterval("TASK_POLLING_LOG_INTERVAL", 10)
+	count := 0
+
 	for {
 		time.Sleep(time.Duration(15) * time.Second)
-		common.SysLog("任务进度轮询开始")
+		count++
+
+		if interval > 0 && count%interval == 0 {
+			common.SysLog(fmt.Sprintf("任务进度轮询 [第%d次]", count))
+		}
+
 		ctx := context.TODO()
 		sweepTimedOutTasks(ctx)
 		allTasks := model.GetAllUnFinishSyncTasks(constant.TaskQueryLimit)
@@ -133,7 +141,10 @@ func TaskPollingLoop() {
 
 			DispatchPlatformUpdate(platform, taskChannelM, taskM)
 		}
-		common.SysLog("任务进度轮询完成")
+
+		if interval > 0 && count%interval == 0 {
+			common.SysLog("任务进度轮询完成")
+		}
 	}
 }
 
