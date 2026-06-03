@@ -10,9 +10,17 @@ DEV_POSTGRES_DB = new-api
 DEV_POSTGRES_USER = root
 DEV_SQLITE_PATH ?= one-api.db
 
+DATE_PREFIX := $(shell date +%y%m%d)
+GIT_VERSION := $(shell git describe --tags --always 2>/dev/null || echo 'dev')
+VERSION ?= $(DATE_PREFIX).$(GIT_VERSION)
+
+
 .PHONY: all build-frontend build-frontend-classic build-all-frontends start-backend dev dev-api dev-api-rebuild dev-web dev-web-classic reset-setup
 
 all: build-all-frontends start-backend
+
+docker:
+	docker compose build --build-arg VERSION=$(VERSION)
 
 build-frontend:
 	@echo "Building default frontend..."

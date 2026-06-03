@@ -121,7 +121,9 @@ func SaveQuotaDataCache() {
 		}
 	}
 	CacheQuotaData = make(map[string]*QuotaData)
-	common.SysLog(fmt.Sprintf("保存数据看板数据成功，共保存%d条数据", size))
+	if size > 0 {
+		common.SysLog(fmt.Sprintf("保存数据看板数据成功，共保存%d条数据", size))
+	}
 }
 
 func increaseQuotaData(quotaData *QuotaData) {
