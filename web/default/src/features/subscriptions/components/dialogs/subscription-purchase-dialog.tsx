@@ -45,6 +45,7 @@ import {
 } from '../../api'
 import { formatDuration, formatResetPeriod } from '../../lib'
 import type { PlanRecord } from '../../types'
+import { formatBillingCurrencyFromUSD } from '@/lib/currency'
 
 interface PaymentMethod {
   type: string
@@ -315,7 +316,7 @@ export function SubscriptionPurchaseDialog(props: Props) {
           <Separator />
           <div className='flex items-center justify-between'>
             <span className='text-sm font-medium'>{t('Amount Due')}</span>
-            <span className='text-primary text-lg font-bold'>${price}</span>
+            <span className='text-primary text-lg font-bold'>{formatBillingCurrencyFromUSD(price)}</span>
           </div>
         </div>
 
