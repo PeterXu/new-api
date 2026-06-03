@@ -31,6 +31,7 @@ import {
   NotepadTextIcon,
   CodeSquareIcon,
   GraduationCapIcon,
+  Trash2Icon,
 } from 'lucide-react'
 import { useTranslation } from 'react-i18next'
 import { toast } from 'sonner'
@@ -55,8 +56,10 @@ import type { ModelOption, GroupOption } from '../types'
 interface PlaygroundInputProps {
   onSubmit: (text: string) => void
   onStop?: () => void
+  onClear?: () => void
   disabled?: boolean
   isGenerating?: boolean
+  hasMessages?: boolean
   models: ModelOption[]
   modelValue: string
   onModelChange: (value: string) => void
@@ -78,8 +81,10 @@ const suggestions = [
 export function PlaygroundInput({
   onSubmit,
   onStop,
+  onClear,
   disabled,
   isGenerating,
+  hasMessages,
   models,
   modelValue,
   onModelChange,
@@ -128,6 +133,19 @@ export function PlaygroundInput({
 
         <PromptInputFooter className='p-2.5'>
           <PromptInputTools>
+            {hasMessages && onClear && (
+              <PromptInputButton
+                className='border font-medium'
+                disabled={disabled || isGenerating}
+                onClick={onClear}
+                variant='outline'
+              >
+                <Trash2Icon size={16} />
+                <span className='hidden sm:inline'>{t('Clear')}</span>
+                <span className='sr-only sm:hidden'>{t('Clear')}</span>
+              </PromptInputButton>
+            )}
+
             <DropdownMenu>
               <DropdownMenuTrigger
                 render={
