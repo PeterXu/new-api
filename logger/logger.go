@@ -24,8 +24,6 @@ const (
 	loggerDebug = "DEBUG"
 )
 
-const maxLogCount = 1000000
-
 var logCount int
 var setupLogLock sync.Mutex
 var setupLogWorking bool
@@ -110,7 +108,7 @@ func logHelper(ctx context.Context, level string, msg string) {
 	_, _ = fmt.Fprintf(writer, "[%s] %v | %s | %s \n", level, now.Format("2006/01/02 - 15:04:05"), id, msg)
 	common.LogWriterMu.RUnlock()
 	logCount++ // we don't need accurate count, so no lock here
-	if logCount > maxLogCount && !setupLogWorking {
+	if logCount > common.MaxLogCount && !setupLogWorking {
 		logCount = 0
 		setupLogWorking = true
 		gopool.Go(func() {

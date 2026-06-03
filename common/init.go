@@ -19,6 +19,7 @@ var (
 	PrintVersion = flag.Bool("version", false, "print version and exit")
 	PrintHelp    = flag.Bool("help", false, "print help and exit")
 	LogDir       = flag.String("log-dir", "./logs", "specify the log directory")
+	MaxLogCount  int = 1000000
 )
 
 func printHelp() {
@@ -131,6 +132,11 @@ func InitEnv() {
 	SearchRateLimitEnable = GetEnvOrDefaultBool("SEARCH_RATE_LIMIT_ENABLE", true)
 	SearchRateLimitNum = GetEnvOrDefault("SEARCH_RATE_LIMIT", 10)
 	SearchRateLimitDuration = int64(GetEnvOrDefault("SEARCH_RATE_LIMIT_DURATION", 60))
+
+	MaxLogCount = GetEnvOrDefault("MAX_LOG_COUNT", 1000000)
+	if MaxLogCount < 0 {
+		MaxLogCount = 1000000
+	}
 	initConstantEnv()
 }
 

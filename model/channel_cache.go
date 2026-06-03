@@ -100,14 +100,25 @@ func InitChannelCache() {
 	// loadPricingAdvancedCustomConfigs. channelSyncLock MUST be released before
 	// invalidating the pricing cache, otherwise the reversed order deadlocks.
 	InvalidatePricingCache()
-	common.SysLog("channels synced from database")
 }
 
 func SyncChannelCache(frequency int) {
+	interval := common.GetLogInterval("TASK_DB_SYNC_LOG_INTERVAL", 10)
+	count := 0
+
 	for {
 		time.Sleep(time.Duration(frequency) * time.Second)
-		common.SysLog("syncing channels from database")
+		count++
+
+		if interval > 0 && count%interval == 0 {
+			common.SysLog(fmt.Sprintf("syncing channels from database [第%d次]", count))
+		}
+
 		InitChannelCache()
+
+		if interval > 0 && count%interval == 0 {
+			common.SysLog("channels synced from database")
+		}
 	}
 }
 
