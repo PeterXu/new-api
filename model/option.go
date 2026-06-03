@@ -1,6 +1,7 @@
 package model
 
 import (
+	"fmt"
 	"strconv"
 	"strings"
 	"time"
@@ -197,9 +198,17 @@ func loadOptionsFromDatabase() {
 }
 
 func SyncOptions(frequency int) {
+	interval := common.GetLogInterval("TASK_DB_SYNC_LOG_INTERVAL", 10)
+	count := 0
+
 	for {
 		time.Sleep(time.Duration(frequency) * time.Second)
-		common.SysLog("syncing options from database")
+		count++
+
+		if interval > 0 && count%interval == 0 {
+			common.SysLog(fmt.Sprintf("syncing options from database [第%d次]", count))
+		}
+
 		loadOptionsFromDatabase()
 	}
 }
