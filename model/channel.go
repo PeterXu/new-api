@@ -1123,3 +1123,22 @@ func CountChannelsGroupByType() (map[int64]int64, error) {
 	}
 	return counts, nil
 }
+
+// Returns all enabled channels from cache or database
+func GetAllEnabledChannels() ([]*Channel, error) {
+	if common.MemoryCacheEnabled {
+		channelSyncLock.RLock()
+		defer channelSyncLock.RUnlock()
+		result := make([]*Channel, 0, len(channelsIDM))
+		for _, ch := range channelsIDM {
+			if ch.Status == common.ChannelStatusEnabled {
+				result = append(result, ch)
+			}
+		}
+		return result, nil
+	}
+	var channels []*Channel
+	err := DB.Where("status = ?", common.ChannelStatusEnabled).Omit("key").Find(&channels).Error
+	return channels, err
+}
+

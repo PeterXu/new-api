@@ -133,7 +133,7 @@ func fetchCodexChannelWhamData(
 			if encErr == nil {
 				_ = model.DB.Model(&model.Channel{}).Where("id = ?", ch.Id).Update("key", string(encoded)).Error
 				model.InitChannelCache()
-				service.ResetProxyClientCache()
+				service.CleanupChannelProxy(ch.Id)
 			}
 
 			ctx2, cancel2 := context.WithTimeout(c.Request.Context(), 15*time.Second)
