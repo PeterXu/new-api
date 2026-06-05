@@ -139,7 +139,8 @@ func runCodexCredentialAutoRefreshOnce() {
 			}()
 			model.InitChannelCache()
 		}()
-		ResetProxyClientCache()
+		// Not needed
+		// ResetProxyClientCache()
 	}
 
 	if common.DebugEnabled {

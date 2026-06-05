@@ -676,7 +676,8 @@ func AddChannel(c *gin.Context) {
 		common.ApiError(c, err)
 		return
 	}
-	service.ResetProxyClientCache()
+	// No proxy client cleanup needed - new channels create clients lazily on first use
+	// service.ResetProxyClientCache()
 	c.JSON(http.StatusOK, gin.H{
 		"success": true,
 		"message": "",
@@ -686,6 +687,8 @@ func AddChannel(c *gin.Context) {
 
 func DeleteChannel(c *gin.Context) {
 	id, _ := strconv.Atoi(c.Param("id"))
+	// Cleanup proxy client before deletion (needs channel info from cache)
+	service.CleanupChannelProxy(id)
 	channel := model.Channel{Id: id}
 	err := channel.Delete()
 	if err != nil {
@@ -737,6 +740,10 @@ func DisableTagChannels(c *gin.Context) {
 		})
 		return
 	}
+	// Get affected channel IDs before disabling for proxy cleanup
+	var channelIds []int
+	model.DB.Model(&model.Channel{}).Where("tag = ?", channelTag.Tag).Pluck("id", &channelIds)
+	service.CleanupChannelProxyBatch(channelIds)
 	err = model.DisableChannelByTag(channelTag.Tag)
 	if err != nil {
 		common.ApiError(c, err)
@@ -840,6 +847,8 @@ func DeleteChannelBatch(c *gin.Context) {
 		})
 		return
 	}
+	// Cleanup proxy clients before batch deletion (needs channel info from cache)
+	service.CleanupChannelProxyBatch(channelBatch.Ids)
 	err = model.BatchDeleteChannels(channelBatch.Ids)
 	if err != nil {
 		common.ApiError(c, err)
@@ -974,13 +983,15 @@ func UpdateChannel(c *gin.Context) {
 			// 覆盖模式：直接使用新密钥（默认行为，不需要特殊处理）
 		}
 	}
+	// Save old proxy config before cache refresh for cleanup
+	oldProxyURL, oldInjectUserId := service.GetChannelProxyConfig(originChannel)
 	err = channel.Update()
 	if err != nil {
 		common.ApiError(c, err)
 		return
 	}
 	model.InitChannelCache()
-	service.ResetProxyClientCache()
+	service.CleanupChannelProxyConfig(oldProxyURL, oldInjectUserId, channel.Id)
 	channel.Key = ""
 	clearChannelInfo(&channel.Channel)
 	c.JSON(http.StatusOK, gin.H{
