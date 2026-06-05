@@ -6,19 +6,27 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"strings"
 	"sync"
 	"time"
 
 	"github.com/QuantumNous/new-api/common"
+	"github.com/QuantumNous/new-api/dto"
+	"github.com/QuantumNous/new-api/model"
 	"github.com/QuantumNous/new-api/setting/system_setting"
 
 	"golang.org/x/net/proxy"
 )
 
+// NOTE:
+//  There are two proxy urls: a). channel proxy url; b). actual proxy url
+//  In general, these two proxy urls are the same.
+//  However, they are different when channel setting's injectUserId is true.
+
 var (
 	httpClient              *http.Client
 	ssrfProtectedHTTPClient *http.Client
-	proxyClientLock         sync.Mutex
+	proxyClientLock         sync.RWMutex
 	proxyClients            = make(map[string]*http.Client)
 )
 
@@ -129,12 +137,12 @@ func NewProxyHttpClient(proxyURL string) (*http.Client, error) {
 		return http.DefaultClient, nil
 	}
 
-	proxyClientLock.Lock()
+	proxyClientLock.RLock()
 	if client, ok := proxyClients[proxyURL]; ok {
-		proxyClientLock.Unlock()
+		proxyClientLock.RUnlock()
 		return client, nil
 	}
-	proxyClientLock.Unlock()
+	proxyClientLock.RUnlock()
 
 	parsedURL, err := url.Parse(proxyURL)
 	if err != nil {
@@ -159,6 +167,10 @@ func NewProxyHttpClient(proxyURL string) (*http.Client, error) {
 		}
 		client.Timeout = time.Duration(common.RelayTimeout) * time.Second
 		proxyClientLock.Lock()
+		if existing, ok := proxyClients[proxyURL]; ok {
+			proxyClientLock.Unlock()
+			return existing, nil
+		}
 		proxyClients[proxyURL] = client
 		proxyClientLock.Unlock()
 		return client, nil
@@ -199,6 +211,10 @@ func NewProxyHttpClient(proxyURL string) (*http.Client, error) {
 		client := &http.Client{Transport: transport, CheckRedirect: checkRedirect}
 		client.Timeout = time.Duration(common.RelayTimeout) * time.Second
 		proxyClientLock.Lock()
+		if existing, ok := proxyClients[proxyURL]; ok {
+			proxyClientLock.Unlock()
+			return existing, nil
+		}
 		proxyClients[proxyURL] = client
 		proxyClientLock.Unlock()
 		return client, nil
@@ -206,4 +222,172 @@ func NewProxyHttpClient(proxyURL string) (*http.Client, error) {
 	default:
 		return nil, fmt.Errorf("unsupported proxy scheme: %s, must be http, https, socks5 or socks5h", parsedURL.Scheme)
 	}
+}
+
+// Removes proxy clients for a channel if no other channel uses them
+func CleanupChannelProxy(channelId int) {
+	channel, err := model.CacheGetChannel(channelId)
+	if err != nil {
+		return
+	}
+
+	channelProxyURL, injectUserId := GetChannelProxyConfig(channel)
+	cleanupProxy(channelProxyURL, injectUserId, map[int]bool{channelId: true})
+}
+
+// Cleans up proxy clients for a specific proxy config.
+// Used when the proxy config is already known (e.g., after capturing old config before an update).
+func CleanupChannelProxyConfig(proxyURL string, injectUserId bool, excludeChannelId int) {
+	cleanupProxy(proxyURL, injectUserId, map[int]bool{excludeChannelId: true})
+}
+
+// Removes proxy clients for a set of channels that are about to be deleted or disabled.
+// Must be called BEFORE the channels are deleted/disabled so that channel data is still available from cache.
+// After this, the caller should delete/disable the channels and call model.InitChannelCache().
+func CleanupChannelProxyBatch(channelIds []int) {
+	type proxyKey struct {
+		url          string
+		injectUserId bool
+	}
+	seen := make(map[proxyKey]bool)
+	excludeSet := make(map[int]bool, len(channelIds))
+	for _, id := range channelIds {
+		excludeSet[id] = true
+	}
+
+	for _, id := range channelIds {
+		channel, err := model.CacheGetChannel(id)
+		if err != nil {
+			continue
+		}
+		proxyURL, injectUserId := GetChannelProxyConfig(channel)
+		if proxyURL == "" {
+			continue
+		}
+		key := proxyKey{proxyURL, injectUserId}
+		if seen[key] {
+			continue
+		}
+		seen[key] = true
+		cleanupProxy(proxyURL, injectUserId, excludeSet)
+	}
+}
+
+// Removes proxy clients for the given config if no enabled channel uses them.
+// excludeSet contains channel IDs that should be excluded from the "still in use" check.
+func cleanupProxy(proxyURL string, injectUserId bool, excludeSet map[int]bool) {
+	if proxyURL == "" {
+		return
+	}
+	if !isProxyURLUsedByEnabledChannels(proxyURL, injectUserId, excludeSet) {
+		if injectUserId {
+			removeInjectedProxyClients(proxyURL)
+		} else {
+			removeProxyClient(proxyURL)
+		}
+	}
+}
+
+// Removes a specific proxy client by channel proxy url from cache
+func removeProxyClient(proxyURL string) {
+	if proxyURL == "" {
+		return
+	}
+	var transport *http.Transport
+	proxyClientLock.Lock()
+	if client, ok := proxyClients[proxyURL]; ok {
+		if t, ok := client.Transport.(*http.Transport); ok && t != nil {
+			transport = t
+		}
+		delete(proxyClients, proxyURL)
+	}
+	proxyClientLock.Unlock()
+	if transport != nil {
+		transport.CloseIdleConnections()
+	}
+}
+
+// Removes all proxy clients matching channel proxy url with InjectUserId is true.
+// Matching assumes injected usernames follow the pattern "{baseUsername}@{userId}".
+// This will produce false positives if a base proxy username itself contains "@" (e.g., "admin@corp"
+// would match as an injected variant of "admin"). This is acceptable because proxy usernames
+// containing "@" are uncommon and the worst case is an unnecessary removal + lazy recreation.
+func removeInjectedProxyClients(proxyURL string) {
+	if proxyURL == "" {
+		return
+	}
+
+	// Parse base URL to extract pattern component
+	parsedURL, err := url.Parse(proxyURL)
+	if err != nil || parsedURL.User == nil {
+		// No injection possible, remove directly
+		removeProxyClient(proxyURL)
+		return
+	}
+
+	host := parsedURL.Host
+	username := parsedURL.User.Username()
+	password, _ := parsedURL.User.Password()
+
+	proxyClientLock.Lock()
+	var transports []*http.Transport
+	for key, client := range proxyClients {
+		keyParsed, err := url.Parse(key)
+		if err != nil || keyParsed.User == nil {
+			continue
+		}
+		keyUsername := keyParsed.User.Username()
+		keyPassword, _ := keyParsed.User.Password()
+
+		// Check if this key's username starts with username@
+		// e.g., username="user", injected username="user@42"
+		if keyParsed.Host == host && keyPassword == password {
+			if strings.HasPrefix(keyUsername, username+"@") {
+				if t, ok := client.Transport.(*http.Transport); ok && t != nil {
+					transports = append(transports, t)
+				}
+				delete(proxyClients, key)
+			}
+		}
+	}
+	proxyClientLock.Unlock()
+	for _, t := range transports {
+		t.CloseIdleConnections()
+	}
+}
+
+// Checks if any enabled channel uses this channel proxy URL
+// For injected URLs (injectUserId=true), also requires InjectUserIdInProxy to match
+// excludeSet contains channel IDs to exclude from the check (e.g., channels being deleted)
+func isProxyURLUsedByEnabledChannels(proxyURL string, injectUserId bool, excludeSet map[int]bool) bool {
+	if proxyURL == "" {
+		return false
+	}
+
+	channels, err := model.GetAllEnabledChannels()
+	if err != nil {
+		return true // conservatively assume proxy is still in use
+	}
+	for _, channel := range channels {
+		if excludeSet[channel.Id] {
+			continue
+		}
+		channelProxyURL, channelInjectUserId := GetChannelProxyConfig(channel)
+		if channelProxyURL == proxyURL && channelInjectUserId == injectUserId {
+			return true
+		}
+	}
+	return false
+}
+
+// Extracts channel proxy url and injectUserId setting from channel
+func GetChannelProxyConfig(channel *model.Channel) (proxyURL string, injectUserId bool) {
+	if channel.Setting == nil || *channel.Setting == "" {
+		return "", false
+	}
+	var settings dto.ChannelSettings
+	if err := common.Unmarshal([]byte(*channel.Setting), &settings); err != nil {
+		return "", false
+	}
+	return settings.Proxy, settings.InjectUserIdInProxy
 }
