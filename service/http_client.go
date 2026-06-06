@@ -275,6 +275,10 @@ func removeProxyClient(proxyURL string) {
 }
 
 // Removes all proxy clients matching channel proxy url with InjectUserId is true.
+// Matching assumes injected usernames follow the pattern "{baseUsername}@{userId}".
+// This will produce false positives if a base proxy username itself contains "@" (e.g., "admin@corp"
+// would match as an injected variant of "admin"). This is acceptable because proxy usernames
+// containing "@" are uncommon and the worst case is an unnecessary removal + lazy recreation.
 func removeInjectedProxyClients(proxyURL string) {
 	if proxyURL == "" {
 		return
