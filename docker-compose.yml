@@ -13,7 +13,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.my
-    image: new-api-my:local
+    image: new-api:local
     restart: always
     command: --log-dir /app/logs
     ports:
