@@ -3937,6 +3937,7 @@ export function ChannelMutateDrawer({
                                                 {
                                                   '*': true,
                                                   're:^X-Trace-.*$': true,
+                                                  'X-User-Id': '{user_id}',
                                                   'X-Foo':
                                                     '{client_header:X-Foo}',
                                                   Authorization:
@@ -4015,6 +4016,10 @@ export function ChannelMutateDrawer({
                                         {'{api_key}'}
                                       </code>{' '}
                                       — {t('Channel key')},{' '}
+                                      <code className='bg-muted rounded px-1 py-0.5'>
+                                        {'{user_id}'}
+                                      </code>{' '}
+                                      — {t('User ID')},{' '}
                                       <code className='bg-muted rounded px-1 py-0.5'>
                                         {'{client_header:NAME}'}
                                       </code>{' '}
