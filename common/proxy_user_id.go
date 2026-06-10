@@ -5,7 +5,7 @@ import (
 	"strconv"
 )
 
-// InjectUserIdInProxyURL transforms a proxy URL to embed a user ID in the username field.
+// InjectUserIdInProxy transforms a proxy URL to embed a user ID in the username field.
 //
 //	Input:  socks5://user:pass@host:port  +  userId=42
 //	Output: socks5://user@42:pass@host:port
@@ -14,7 +14,7 @@ import (
 // The "@" separator is safe because user IDs are numeric and cannot contain "@".
 //
 // This is a no-op when injectUserId is false, proxyURL is empty, or userId is 0.
-func InjectUserIdInProxyURL(proxyURL string, injectUserId bool, userId int) string {
+func InjectUserIdInProxy(proxyURL string, injectUserId bool, userId int) string {
 	if !injectUserId || proxyURL == "" || userId == 0 {
 		return proxyURL
 	}

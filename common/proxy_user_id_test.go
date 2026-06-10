@@ -4,7 +4,7 @@ import (
 	"testing"
 )
 
-func TestInjectUserIdInProxyURL(t *testing.T) {
+func TestInjectUserIdInProxy(t *testing.T) {
 	tests := []struct {
 		name         string
 		proxyURL     string
@@ -93,9 +93,9 @@ func TestInjectUserIdInProxyURL(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			got := InjectUserIdInProxyURL(tt.proxyURL, tt.injectUserId, tt.userId)
+			got := InjectUserIdInProxy(tt.proxyURL, tt.injectUserId, tt.userId)
 			if got != tt.want {
-				t.Errorf("InjectUserIdInProxyURL(%q, %v, %d) = %q, want %q",
+				t.Errorf("InjectUserIdInProxy(%q, %v, %d) = %q, want %q",
 					tt.proxyURL, tt.injectUserId, tt.userId, got, tt.want)
 			}
 		})

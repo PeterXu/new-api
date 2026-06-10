@@ -3220,7 +3220,7 @@ export function ChannelMutateDrawer({
 
                       <FormField
                         control={form.control}
-                        name='inject_user_id_in_proxy_url'
+                        name='inject_userid_in_proxy'
                         render={({ field }) => (
                           <FormItem className='flex items-center justify-between'>
                             <div className='space-y-0.5'>

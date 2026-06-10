@@ -192,7 +192,7 @@ const EditChannelModal = (props) => {
     force_format: false,
     thinking_to_content: false,
     proxy: '',
-    inject_user_id_in_proxy_url: false,
+    inject_userid_in_proxy: false,
     pass_through_body_enabled: false,
     system_prompt: '',
     system_prompt_override: false,
@@ -516,7 +516,7 @@ const EditChannelModal = (props) => {
     force_format: false,
     thinking_to_content: false,
     proxy: '',
-    inject_user_id_in_proxy_url: false,
+    inject_userid_in_proxy: false,
     pass_through_body_enabled: false,
     system_prompt: '',
   });
@@ -867,8 +867,8 @@ const EditChannelModal = (props) => {
           data.thinking_to_content =
             parsedSettings.thinking_to_content || false;
           data.proxy = parsedSettings.proxy || '';
-          data.inject_user_id_in_proxy_url =
-            parsedSettings.inject_user_id_in_proxy_url || false;
+          data.inject_userid_in_proxy =
+            parsedSettings.inject_userid_in_proxy || false;
           data.pass_through_body_enabled =
             parsedSettings.pass_through_body_enabled || false;
           data.system_prompt = parsedSettings.system_prompt || '';
@@ -879,7 +879,7 @@ const EditChannelModal = (props) => {
           data.force_format = false;
           data.thinking_to_content = false;
           data.proxy = '';
-          data.inject_user_id_in_proxy_url = false;
+          data.inject_userid_in_proxy = false;
           data.pass_through_body_enabled = false;
           data.system_prompt = '';
           data.system_prompt_override = false;
@@ -888,7 +888,7 @@ const EditChannelModal = (props) => {
         data.force_format = false;
         data.thinking_to_content = false;
         data.proxy = '';
-        data.inject_user_id_in_proxy_url = false;
+        data.inject_userid_in_proxy = false;
         data.pass_through_body_enabled = false;
         data.system_prompt = '';
         data.system_prompt_override = false;
@@ -1757,7 +1757,7 @@ const EditChannelModal = (props) => {
       force_format: localInputs.force_format || false,
       thinking_to_content: localInputs.thinking_to_content || false,
       proxy: localInputs.proxy || '',
-      inject_user_id_in_proxy_url: localInputs.inject_user_id_in_proxy_url || false,
+      inject_userid_in_proxy: localInputs.inject_userid_in_proxy || false,
       pass_through_body_enabled: localInputs.pass_through_body_enabled || false,
       system_prompt: localInputs.system_prompt || '',
       system_prompt_override: localInputs.system_prompt_override || false,
@@ -2538,7 +2538,7 @@ const EditChannelModal = (props) => {
 
                   <Form.Input field='proxy' label={t('代理地址')} placeholder={t('例如: socks5://user:pass@host:port')} onChange={(value) => handleChannelSettingsChange('proxy', value)} showClear extraText={t('用于配置网络代理，支持 socks5 协议')} />
 
-                  <Form.Switch field='inject_user_id_in_proxy_url' label={t('在代理中注入用户 ID')} checkedText={t('开')} uncheckedText={t('关')} onChange={(value) => handleChannelSettingsChange('inject_user_id_in_proxy_url', value)} extraText={t('将用户 ID 注入代理 URL 用户名，用于代理服务器端的用户身份识别')} />
+                  <Form.Switch field='inject_userid_in_proxy' label={t('在代理中注入用户 ID')} checkedText={t('开')} uncheckedText={t('关')} onChange={(value) => handleChannelSettingsChange('inject_userid_in_proxy', value)} extraText={t('将用户 ID 注入代理 URL 用户名，用于代理服务器端的用户身份识别')} />
 
                   <Form.TextArea field='system_prompt' label={t('系统提示词')} placeholder={t('输入系统提示词，用户的系统提示词将优先于此设置')} onChange={(value) => handleChannelSettingsChange('system_prompt', value)} autosize showClear extraText={t('用户优先：如果用户在请求中指定了系统提示词，将优先使用用户的设置')} />
                   <Form.Switch field='system_prompt_override' label={t('系统提示词拼接')} checkedText={t('开')} uncheckedText={t('关')} onChange={(value) => handleChannelSettingsChange('system_prompt_override', value)} extraText={t('如果用户请求中包含系统提示词，则使用此设置拼接到用户的系统提示词前面')} />

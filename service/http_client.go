@@ -324,7 +324,7 @@ func removeInjectedProxyClients(proxyURL string) {
 }
 
 // Checks if any enabled channel uses this channel proxy URL
-// For injected URLs (injectUserId=true), also requires InjectUserIdInProxyURL to match
+// For injected URLs (injectUserId=true), also requires InjectUserIdInProxy to match
 // excludeSet contains channel IDs to exclude from the check (e.g., channels being deleted)
 func isProxyURLUsedByEnabledChannels(proxyURL string, injectUserId bool, excludeSet map[int]bool) bool {
 	if proxyURL == "" {
@@ -356,5 +356,5 @@ func GetChannelProxyConfig(channel *model.Channel) (proxyURL string, injectUserI
 	if err := common.Unmarshal([]byte(*channel.Setting), &settings); err != nil {
 		return "", false
 	}
-	return settings.Proxy, settings.InjectUserIdInProxyURL
+	return settings.Proxy, settings.InjectUserIdInProxy
 }

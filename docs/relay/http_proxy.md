@@ -92,7 +92,7 @@ header.Set("X-Title", "...")
 ```go
 type ChannelSettings struct {
     Proxy                  string `json:"proxy"`
-    InjectUserIdInProxyURL bool   `json:"inject_user_id_in_proxy_url,omitempty"`
+    InjectUserIdInProxy bool   `json:"inject_userid_in_proxy,omitempty"`
     // ...
 }
 ```
@@ -101,7 +101,7 @@ type ChannelSettings struct {
 ```json
 {
   "proxy": "socks5://user:password@proxy-server:1080",
-  "inject_user_id_in_proxy_url": true
+  "inject_userid_in_proxy": true
 }
 ```
 
@@ -152,8 +152,8 @@ func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http
     if info.ChannelSetting.Proxy != "" {
         proxyURL := info.ChannelSetting.Proxy
         // 当启用用户 ID 注入时，将用户 ID 嵌入代理 URL 的用户名字段
-        if info.ChannelSetting.InjectUserIdInProxyURL {
-            proxyURL = common.InjectUserIdInProxyURL(proxyURL, true, info.UserId)
+        if info.ChannelSetting.InjectUserIdInProxy {
+            proxyURL = common.InjectUserIdInProxy(proxyURL, true, info.UserId)
         }
         client, _ = service.NewProxyHttpClient(proxyURL)
     } else {
@@ -167,7 +167,7 @@ func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http
 
 ### 3.4 用户 ID 注入 (`common/proxy_user_id.go`)
 
-当渠道设置 `inject_user_id_in_proxy_url` 为 `true` 时，系统将当前请求用户的 ID 注入到代理 URL 的用户名字段中，使代理服务器能够识别每个请求的用户身份。
+当渠道设置 `inject_userid_in_proxy` 为 `true` 时，系统将当前请求用户的 ID 注入到代理 URL 的用户名字段中，使代理服务器能够识别每个请求的用户身份。
 
 **转换规则：**
 
@@ -207,7 +207,7 @@ func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http
    │                   [Distribute] 选择渠道                   │
    │                           │  • 加载 channel.Setting      │
    │                           │  • Setting.Proxy = "socks5://..." │
-   │                           │  • Setting.InjectUserIdInProxyURL │
+   │                           │  • Setting.InjectUserIdInProxy │
    │                           │                               │
    │                   [Relay] 构建上游请求                    │
    │                           │  • URL: channel.BaseURL + path │
@@ -348,7 +348,7 @@ var (
 
 **缓存特点：**
 - 相同代理 URL 共享同一个 `http.Client` 和连接池
-- 当启用 `InjectUserIdInProxyURL` 时，每个用户对应一个缓存条目（URL 不同）
+- 当启用 `InjectUserIdInProxy` 时，每个用户对应一个缓存条目（URL 不同）
 - 活跃用户的连接可复用（keep-alive），不同用户互不干扰
 
 ### 5.3 连接回收触发时机
@@ -446,7 +446,7 @@ func ResetProxyClientCache() {
 - 提高请求响应速度
 
 **按用户隔离：**
-- 当启用 `InjectUserIdInProxyURL` 时，每个用户有独立的连接池
+- 当启用 `InjectUserIdInProxy` 时，每个用户有独立的连接池
 - 用户 A 的连接不会被用户 B 复用
 - 代理服务器可准确统计每个用户的连接数和流量
 
@@ -489,7 +489,7 @@ Content-Type: application/json
 **SOCKS5 握手过程（在 TCP 层）：**
 1. New-API 连接 SOCKS5 代理 (如 `proxy:1080`)
 2. 发送 SOCKS5 握手，携带认证信息：
-   - 用户名: `user@42`（原始用户名 + `@` + 用户 ID，仅在启用 `inject_user_id_in_proxy_url` 时）
+   - 用户名: `user@42`（原始用户名 + `@` + 用户 ID，仅在启用 `inject_userid_in_proxy` 时）
    - 密码: 原始密码不变
 3. 代理验证认证，提取用户名中的用户 ID 用于身份识别
 4. 发送目标地址 (`api.openai.com:443`)

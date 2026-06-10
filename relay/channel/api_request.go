@@ -497,8 +497,8 @@ func doRequest(c *gin.Context, req *http.Request, info *common.RelayInfo) (*http
 		// When enabled, each unique user gets a distinct proxy URL (user ID in username).
 		// NewProxyHttpClient caches by URL, so active users accumulate cached transports.
 		// This is by design — the connection pool per user enables keep-alive reuse through the proxy.
-		if info.ChannelSetting.InjectUserIdInProxyURL {
-			proxyURL = common2.InjectUserIdInProxyURL(proxyURL, true, info.UserId)
+		if info.ChannelSetting.InjectUserIdInProxy {
+			proxyURL = common2.InjectUserIdInProxy(proxyURL, true, info.UserId)
 		}
 		client, err = service.NewProxyHttpClient(proxyURL)
 		if err != nil {
