@@ -12,8 +12,8 @@ proxyClientLock sync.RWMutex          // protects proxyClients map
 ```
 
 - **Channel proxy URL**: the `Proxy` field from `ChannelSettings` (stored in channel's `Setting` JSON column).
-- **Actual proxy URL**: when `InjectUserIdInProxyURL` is true, user ID is appended to the proxy URL's username (e.g., `socks5://user@42:pass@host:port`), so each user gets a distinct cached client.
-- These are usually the same; they differ only when `InjectUserIdInProxyURL` is enabled.
+- **Actual proxy URL**: when `InjectUserIdInProxy` is true, user ID is appended to the proxy URL's username (e.g., `socks5://user@42:pass@host:port`), so each user gets a distinct cached client.
+- These are usually the same; they differ only when `InjectUserIdInProxy` is enabled.
 
 ## Map Operations
 
@@ -48,7 +48,7 @@ Channel lifecycle event
 | `CleanupChannelProxyBatch(channelIds)` | Cleanup for batch delete (deduplicates proxy URLs across channels) |
 | `cleanupProxy(proxyURL, injectUserId, excludeSet)` | Core logic: check if proxy still used, remove if not |
 | `isProxyURLUsedByEnabledChannels(...)` | Checks in-memory cache or DB for other enabled channels using same proxy |
-| `GetChannelProxyConfig(channel)` | Extracts `Proxy` and `InjectUserIdInProxyURL` from channel's `Setting` JSON |
+| `GetChannelProxyConfig(channel)` | Extracts `Proxy` and `InjectUserIdInProxy` from channel's `Setting` JSON |
 
 ### `GetAllEnabledChannels()` — Data Source
 
@@ -79,7 +79,7 @@ Channel lifecycle event
 
 | File | Scenario | User ID Injection? |
 |------|----------|-------------------|
-| `relay/channel/api_request.go` | Main relay requests | YES (when `InjectUserIdInProxyURL`) |
+| `relay/channel/api_request.go` | Main relay requests | YES (when `InjectUserIdInProxy`) |
 | `relay/channel/aws/relay-aws.go` | AWS Bedrock relay | YES (via `info.ChannelSetting`) |
 | `relay/channel/coze/relay-coze.go` | Coze relay | YES |
 | `relay/channel/vertex/service_account.go` | Vertex AI | YES |
@@ -93,14 +93,14 @@ Channel lifecycle event
 ## User ID Injection Handling
 
 ```
-Channel Setting:       Proxy = "socks5://user:pass@host:port", InjectUserIdInProxyURL = true
+Channel Setting:       Proxy = "socks5://user:pass@host:port", InjectUserIdInProxy = true
 Actual cached keys:    "socks5://user@1:pass@host:port"  (user 1)
                        "socks5://user@2:pass@host:port"  (user 2)
                        "socks5://user@42:pass@host:port" (user 42)
                        ... potentially thousands of active users
 ```
 
-- `common.InjectUserIdInProxyURL()` appends `@{userId}` to the username part.
+- `common.InjectUserIdInProxy()` appends `@{userId}` to the username part.
 - `removeInjectedProxyClients(baseURL)` finds all cached keys matching `baseUser@*` at the same host with same password.
 - This is critical for cleanup: deleting/disabling one channel with injection can remove thousands of cached clients.
 
