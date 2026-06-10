@@ -705,6 +705,9 @@ const EditTagModal = (props) => {
                             <div>
                               {t('渠道密钥')}: {'{api_key}'}
                             </div>
+                            <div>
+                              {t('用户ID')}: {'{user_id}'}
+                            </div>
                           </div>
                         </div>
                       </div>
