@@ -2381,7 +2381,7 @@ const EditChannelModal = (props) => {
                             onClick={() =>
                               handleInputChange(
                                 'header_override',
-                                JSON.stringify({ '*': true, 're:^X-Trace-.*$': true, 'X-Foo': '{client_header:X-Foo}', Authorization: 'Bearer {api_key}', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36 Edg/139.0.0.0' }, null, 2),
+                                JSON.stringify({ '*': true, 're:^X-Trace-.*$': true, 'X-User-Id': '{user_id}', 'X-Foo': '{client_header:X-Foo}', Authorization: 'Bearer {api_key}', 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36 Edg/139.0.0.0' }, null, 2),
                               )
                             }
                           >
@@ -2409,6 +2409,9 @@ const EditChannelModal = (props) => {
                           <div className='text-xs text-tertiary ml-2'>
                             <div>
                               {t('渠道密钥')}: {'{api_key}'}
+                            </div>
+                            <div>
+                              {t('用户ID')}: {'{user_id}'}
                             </div>
                           </div>
                         </div>
