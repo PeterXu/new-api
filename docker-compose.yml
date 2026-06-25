@@ -4,6 +4,12 @@
 #   1. docker-compose up -d
 #   2. Access at http://localhost:3000
 #
+# Using MySQL instead of PostgreSQL:
+#   1. Comment out the postgres service and SQL_DSN line 15
+#   2. Uncomment the mysql service and SQL_DSN line 16
+#   3. Uncomment mysql in depends_on (line 28)
+#   4. Uncomment mysql_data in volumes section (line 64)
+#
 # ⚠️  IMPORTANT: Change all default passwords before deploying to production!
 
 version: '3.4' # For compatibility with older Docker versions
@@ -15,11 +21,11 @@ services:
       dockerfile: Dockerfile.my
     image: new-api:local
     restart: always
+    #command: --log-dir /app/logs
     ulimits:
       nofile:
         soft: 100000
         hard: 100000
-    #command: --log-dir /app/logs
     ports:
       - "3000:3000"
     volumes:
@@ -59,6 +65,7 @@ services:
   redis:
     image: redis:8-alpine
     restart: always
+    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-123456}"]  # ⚠️ IMPORTANT: Change this password in production!
     ulimits:
       nofile:
         soft: 100000
@@ -67,7 +74,6 @@ services:
       - TZ=${TZ:-Asia/Shanghai}
       # REDISCLI_AUTH is used by redis-cli for authentication (safer than -a flag)
       - REDISCLI_AUTH=${REDIS_PASSWORD:-123456}
-    command: ["redis-server", "--requirepass", "${REDIS_PASSWORD:-123456}"]  # ⚠️ IMPORTANT: Change this password in production!
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 10s
