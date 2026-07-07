@@ -1,0 +1,64 @@
+FROM oven/bun:1 AS builder
+
+WORKDIR /build/web
+COPY web/package.json web/bun.lock ./
+ENV BUN_CONFIG_REGISTRY=https://registry.npmmirror.com
+RUN bun install --frozen-lockfile
+COPY ./web ./
+COPY ./VERSION /build/VERSION
+RUN DISABLE_ESLINT_PLUGIN='true' VITE_REACT_APP_VERSION=$(cat /build/VERSION) bun run build
+
+FROM golang:1.26.1-alpine AS builder2
+ENV GO111MODULE=on CGO_ENABLED=0
+
+ARG TARGETOS
+ARG TARGETARCH
+ENV GOOS=${TARGETOS:-linux} GOARCH=${TARGETARCH:-amd64}
+ENV GOEXPERIMENT=greenteagc
+
+WORKDIR /build
+
+ENV GOPROXY=https://mirrors.aliyun.com/goproxy/,https://goproxy.cn,direct
+ADD go.mod go.sum ./
+RUN go mod download
+
+#COPY . .
+COPY common ./common
+COPY constant ./constant
+COPY controller ./controller
+COPY dto ./dto
+COPY i18n ./i18n
+COPY logger ./logger
+COPY middleware ./middleware
+COPY model ./model
+COPY oauth ./oauth
+COPY pkg ./pkg
+COPY relay ./relay
+COPY router ./router
+COPY service ./service
+COPY setting ./setting
+COPY types ./types
+COPY VERSION .
+COPY main.go .
+COPY trusted_proxies.go .
+
+ARG VERSION
+COPY --from=builder /build/web/dist ./web/dist
+RUN go build -ldflags "-s -w -X github.com/QuantumNous/new-api/common.Version=${VERSION:-dev}" -o new-api
+
+FROM debian:bookworm-slim
+RUN sed -i 's/deb.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources && \
+    sed -i 's/security.debian.org/mirrors.aliyun.com/g' /etc/apt/sources.list.d/debian.sources
+
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends ca-certificates tzdata libasan8 wget \
+    && rm -rf /var/lib/apt/lists/* \
+    && update-ca-certificates
+
+COPY --from=builder2 /build/new-api /
+COPY LICENSE NOTICE THIRD-PARTY-LICENSES.md /licenses/
+EXPOSE 3000
+WORKDIR /data
+COPY .env.template .
+COPY docker-compose.yml .
+ENTRYPOINT ["/new-api"]
