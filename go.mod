@@ -168,3 +168,4 @@ require (
 )
 
 replace github.com/QuantumNous/new-api/relaykit => ./relaykit
+replace github.com/QuantumNous/new-api => ./
