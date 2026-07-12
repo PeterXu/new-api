@@ -10,7 +10,7 @@ DEV_POSTGRES_DB = new-api
 DEV_POSTGRES_USER = root
 DEV_SQLITE_PATH ?= one-api.db
 
-VER_PREFIX := $(shell git rev-parse --abbrev-ref HEAD)
+VER_PREFIX := $(shell git rev-parse --abbrev-ref HEAD | sed 's/^devp\.//')
 GIT_VERSION := $(shell git rev-parse --short HEAD)
 VERSION ?= $(VER_PREFIX).g$(GIT_VERSION)
 
